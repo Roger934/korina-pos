@@ -22,7 +22,7 @@ if ($resultado->num_rows === 1) {
         $_SESSION["rol"] = $row["rol"];
 
         if ($row["rol"] == "admin") {
-            header("Location: ../front/admin/dashboard.php");
+            header("Location: ../admin/dashboard.php");
             exit;
         } else {
             header("Location: ../front/cajero/pos.php");
