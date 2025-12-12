@@ -17,7 +17,7 @@ if (!isset($_SESSION["rol"]) || $_SESSION["rol"] !== "admin") {
 
 <body class="bg-[#f5efe6] min-h-screen">
 
-    <!-- HEADER -->
+<!-- HEADER -->
 <div class="bg-[#d7bfae] p-4 shadow-md">
 
     <div class="flex justify-between items-center">
@@ -49,61 +49,58 @@ if (!isset($_SESSION["rol"]) || $_SESSION["rol"] !== "admin") {
 </div>
 
 
-    <!-- CONTENIDO PRINCIPAL -->
-    <div class="max-w-5xl mx-auto mt-12 grid grid-cols-1 md:grid-cols-3 gap-8 px-4">
+<!-- CONTENIDO PRINCIPAL -->
+<div class="max-w-5xl mx-auto mt-12 grid grid-cols-1 md:grid-cols-3 gap-8 px-4">
 
-        <!-- GESTIÓN DE PRODUCTOS -->
-        <a href="productos/index.php"
-           class="bg-white shadow-md rounded-xl p-6 text-center hover:scale-105 transition block">
-           
-            <img src="/korina-pos/front/imagenes/productos.png" 
-                 class="h-24 mx-auto mb-4" 
-                 onerror="this.style.display='none'">
+    <!-- GESTIÓN DE PRODUCTOS -->
+    <a href="productos/index.php"
+       class="bg-white shadow-lg rounded-xl p-6 text-center hover:scale-105 transition block border-2 border-[#d7bfae]">
 
-            <h2 class="text-xl font-bold text-[#4b2e2b] mb-2">
-                Gestión de Productos
-            </h2>
+        <!-- SVG PRODUCTOS -->
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-24 w-24 mx-auto mb-4 text-[#4b2e2b]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-width="2" d="M3 7h18M3 12h18M3 17h18" />
+        </svg>
 
-            <p class="text-gray-600">
-                Agrega, edita y organiza los productos disponibles en la cafetería.
-            </p>
-        </a>
+        <h2 class="text-xl font-bold text-[#4b2e2b] mb-2">Gestión de Productos</h2>
 
-        <!-- GESTIÓN DE EMPLEADOS -->
-        <a href="empleados/index.php"
-           class="bg-white shadow-md rounded-xl p-6 text-center hover:scale-105 transition block">
+        <p class="text-gray-700">
+            Agrega, edita y organiza los productos disponibles en la cafetería.
+        </p>
+    </a>
 
-            <img src="/korina-pos/front/imagenes/empleados.png" 
-                 class="h-24 mx-auto mb-4"
-                 onerror="this.style.display='none'">
+    <!-- GESTIÓN DE EMPLEADOS -->
+    <a href="empleados/index.php"
+       class="bg-white shadow-lg rounded-xl p-6 text-center hover:scale-105 transition block border-2 border-[#d7bfae]">
 
-            <h2 class="text-xl font-bold text-[#4b2e2b] mb-2">
-                Gestión de Empleados
-            </h2>
+        <!-- SVG EMPLEADOS -->
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-24 w-24 mx-auto mb-4 text-[#4b2e2b]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-width="2" d="M17 20h5v-2a4 4 0 00-4-4h-1m-6 6H2v-2a4 4 0 014-4h1m7-4a4 4 0 11-8 0 4 4 0 018 0zm6 0a4 4 0 11-8 0 4 4 0 018 0z" />
+        </svg>
 
-            <p class="text-gray-600">
-                Administra los usuarios que pueden acceder al sistema.
-            </p>
-        </a>
+        <h2 class="text-xl font-bold text-[#4b2e2b] mb-2">Gestión de Empleados</h2>
 
-        <!-- CORTE DE CAJA -->
-        <a href="corte/index.php"
-           class="bg-white shadow-md rounded-xl p-6 text-center hover:scale-105 transition block">
+        <p class="text-gray-700">
+            Administra los usuarios que pueden acceder al sistema.
+        </p>
+    </a>
 
-            <img src="/korina-pos/front/imagenes/corte.png" 
-                 class="h-24 mx-auto mb-4"
-                 onerror="this.style.display='none'">
+    <!-- CORTE DE CAJA -->
+    <a href="corte/index.php"
+       class="bg-white shadow-lg rounded-xl p-6 text-center hover:scale-105 transition block border-2 border-[#d7bfae]">
 
-            <h2 class="text-xl font-bold text-[#4b2e2b] mb-2">
-                Corte de Caja
-            </h2>
+        <!-- SVG CORTE DE CAJA -->
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-24 w-24 mx-auto mb-4 text-[#4b2e2b]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-10v2m0 8v2m8-6a8 8 0 11-16 0 8 8 0 0116 0z" />
+        </svg>
 
-            <p class="text-gray-600">
-                Revisa y registra los cortes de caja al finalizar un turno.
-            </p>
-        </a>
+        <h2 class="text-xl font-bold text-[#4b2e2b] mb-2">Corte de Caja</h2>
 
-    </div>
+        <p class="text-gray-700">
+            Revisa y registra los cortes de caja al finalizar un turno.
+        </p>
+    </a>
+
+</div>
 
 </body>
 </html>

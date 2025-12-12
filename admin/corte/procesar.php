@@ -9,7 +9,7 @@ if (!isset($_SESSION["rol"]) || $_SESSION["rol"] !== "admin") {
 include "../../back/conexion.php";
 
 // ====================================================
-// 1. OBTENER FECHA DEL ÚLTIMO CORTE (SI EXISTE)
+// 1. OBTENER FECHA DEL ÚLTIMO CORTE
 // ====================================================
 $sql = $conexion->prepare("
     SELECT fecha 
@@ -20,9 +20,8 @@ $sql = $conexion->prepare("
 $sql->execute();
 $res = $sql->get_result()->fetch_assoc();
 
-// Si NO existe ningún corte → usar "2000-01-01"
+// Si NO existe ningún corte → usar un inicio muy antiguo
 $ultima_fecha = $res ? $res["fecha"] : "2000-01-01 00:00:00";
-
 
 // ====================================================
 // 2. OBTENER VENTAS DESPUÉS DEL ÚLTIMO CORTE
@@ -37,29 +36,46 @@ $sqlVentas->bind_param("s", $ultima_fecha);
 $sqlVentas->execute();
 $ventas = $sqlVentas->get_result()->fetch_all(MYSQLI_ASSOC);
 
-
 // ====================================================
-// SI NO HAY VENTAS → mostrar alerta
+// SI NO HAY VENTAS → mostrar alerta bonita
 // ====================================================
 if (empty($ventas)) {
     echo "
+    <!DOCTYPE html>
+    <html lang='es'>
+    <head>
+        <meta charset='UTF-8'>
+        <script src='https://cdn.jsdelivr.net/npm/sweetalert2@11'></script>
+    </head>
+    <body>
+
     <script>
-        alert('No hay ventas pendientes para corte.');
+    Swal.fire({
+        icon: 'info',
+        title: 'Sin ventas pendientes',
+        text: 'No hay ventas nuevas para generar un corte.',
+        confirmButtonColor: '#6b423f',
+        background: '#f5efe6'
+    }).then(() => {
         window.location.href = 'index.php';
-    </script>";
+    });
+    </script>
+
+    </body>
+    </html>
+    ";
     exit;
 }
 
-
 // ====================================================
-// 3. CALCULAR TOTALES
+// 3. CALCULAR TOTALES DEL CORTE
 // ====================================================
 $total_ventas   = 0;
 $total_efectivo = 0;
 $total_tarjeta  = 0;
 
-$ventas_desde = $ventas[0]["fecha"];   
-$ventas_hasta = end($ventas)["fecha"]; 
+$ventas_desde = $ventas[0]["fecha"];
+$ventas_hasta = end($ventas)["fecha"];
 
 foreach ($ventas as $v) {
     $monto = floatval($v["total"]);
@@ -74,9 +90,8 @@ foreach ($ventas as $v) {
     }
 }
 
-
 // ====================================================
-// 4. INSERTAR NUEVO CORTE EN cortes_caja
+// 4. GUARDAR EL CORTE EN LA BD
 // ====================================================
 $sqlInsert = $conexion->prepare("
     INSERT INTO cortes_caja (usuario_id, total_ventas, total_efectivo, total_tarjeta, ventas_desde, ventas_hasta)
@@ -95,9 +110,8 @@ $sqlInsert->bind_param(
 
 $sqlInsert->execute();
 
-
 // ====================================================
-// 5. MOSTRAR SWEET ALERT BONITO Y REGRESAR
+// 5. MOSTRAR ALERTA DE ÉXITO Y REDIRIGIR
 // ====================================================
 echo "
 <!DOCTYPE html>
@@ -113,16 +127,18 @@ echo "
 <script>
 Swal.fire({
     icon: 'success',
-    title: 'Corte realizado',
+    title: 'Corte realizado correctamente',
     html: `
-        <p><b>Total ventas:</b> $" . number_format($total_ventas,2) . "</p>
+        <p style='font-size:18px; margin-bottom:10px'><b>Total ventas:</b> $" . number_format($total_ventas,2) . "</p>
         <p><b>Efectivo:</b> $" . number_format($total_efectivo,2) . "</p>
         <p><b>Tarjeta:</b> $" . number_format($total_tarjeta,2) . "</p>
         <hr>
-        <p style='font-size:14px'>Desde: $ventas_desde</p>
-        <p style='font-size:14px'>Hasta: $ventas_hasta</p>
+        <p style='font-size:14px; margin-top:10px'><b>Desde:</b> $ventas_desde</p>
+        <p style='font-size:14px'><b>Hasta:</b> $ventas_hasta</p>
     `,
-    confirmButtonColor: '#4ade80',
+    confirmButtonColor: '#6b423f',
+    background: '#f5efe6',
+    width: 450
 }).then(() => {
     window.location.href = 'index.php';
 });
@@ -133,3 +149,4 @@ Swal.fire({
 ";
 exit;
 
+?>

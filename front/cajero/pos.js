@@ -1,431 +1,207 @@
-/* ------------------------------
-   VARIABLES GLOBALES
---------------------------------*/
-let productos = []; // Aquí se cargarán los productos cuando conectemos BD
-let carrito = []; // Lista de productos agregados
-let categoriaActual = "";
-let montoRecibido = 0;
+<?php
+session_start();
 
-function alertSuccess(msg) {
-  Swal.fire({
-    icon: "success",
-    title: msg,
-    confirmButtonColor: "#4ade80", // verde pastel
-    background: "#fefce8", // crema suave
-  });
+// Protección de rol
+if (!isset($_SESSION["rol"]) || $_SESSION["rol"] != "cajero") {
+    header("Location: ../index.php");
+    exit;
 }
+?>
 
-function alertError(msg) {
-  Swal.fire({
-    icon: "error",
-    title: "Error",
-    text: msg,
-    confirmButtonColor: "#f87171", // rojo pastel
-    background: "#fef2f2",
-  });
-}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Korina POS</title>
 
-function alertInfo(msg) {
-  Swal.fire({
-    icon: "info",
-    title: msg,
-    confirmButtonColor: "#93c5fd", // azul pastel
-    background: "#eff6ff",
-  });
-}
+    <!-- Tailwind CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
 
-/* ------------------------------
-   CAMBIAR A VISTA PRODUCTOS
---------------------------------*/
-function mostrarProductos(categoria) {
-  categoriaActual = categoria;
+<body class="bg-gradient-to-br from-amber-50 to-orange-50">
 
-  // Cambiar título
-  document.getElementById("titulo-categoria").innerText = categoria;
+    <!-- ========== HEADER ========== -->
+    <div class="bg-gradient-to-r from-amber-800 to-orange-700 p-4 shadow-lg mb-6 fixed top-0 left-0 right-0 z-50">
+        <div class="flex justify-between items-center">
 
-  // Ocultar vista categorías
-  document.getElementById("vista-categorias").classList.add("hidden");
+            <!-- Logo + Cajero -->
+            <div class="flex items-center gap-4">
+                <img src="/korina-pos/front/imagenes/logo.png" class="h-16" />
+                <span class="text-xl font-semibold text-white">
+                    Atiende: <b><?php echo $_SESSION["nombre"]; ?></b>
+                </span>
+            </div>
 
-  // Mostrar vista productos
-  document.getElementById("vista-productos").classList.remove("hidden");
+            <!-- Hora + Logout -->
+            <div class="flex items-center gap-6">
 
-  // TEMPORAL: productos inventados (luego se cargan de BD)
-  cargarProductos(categoria);
-}
+                <div id="hora" class="text-xl font-bold text-amber-100"></div>
 
-/* ------------------------------
-   VOLVER A CATEGORÍAS
---------------------------------*/
-function volverCategorias() {
-  document.getElementById("vista-productos").classList.add("hidden");
-  document.getElementById("vista-categorias").classList.remove("hidden");
-}
-
-async function cargarProductos(categoria) {
-  const productosGrid = document.getElementById("productos-grid");
-  productosGrid.innerHTML = "Cargando...";
-
-  let res = await fetch(
-    `/korina-pos/back/productos/obtener.php?categoria=${categoria}`
-  );
-  let productos = await res.json();
-
-  productosGrid.innerHTML = "";
-
-  productos.forEach((p) => {
-    productosGrid.innerHTML += `
-    <div class="bg-white shadow-md p-6 rounded-xl text-center hover:scale-105 transition cursor-pointer">
-        
-        <img src="/korina-pos/front/imagenes/${p.imagen}"
-     class="h-24 mx-auto mb-3 object-contain"
-     onerror="this.style.display='none'">
-
-
-        <p class="font-bold text-xl mb-2">${p.nombre}</p>
-        <p class="text-gray-600 text-lg mb-3">$${p.precio}</p>
-
-        <button 
-            onclick="agregarCarrito(${p.id}, '${p.nombre}', ${p.precio})"
-            class="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700">
-            Agregar
-        </button>
-    </div>
-`;
-  });
-}
-
-/* ------------------------------
-   AGREGAR PRODUCTO AL CARRITO
---------------------------------*/
-function agregarCarrito(id, nombre, precio) {
-  const existe = carrito.find((p) => p.id === id);
-
-  if (existe) {
-    existe.cantidad++;
-  } else {
-    carrito.push({
-      id,
-      nombre,
-      precio,
-      cantidad: 1,
-    });
-  }
-
-  actualizarCarrito();
-}
-
-/* ------------------------------
-   ACTUALIZAR CARRITO VISUAL
---------------------------------*/
-function actualizarCarrito() {
-  const contenedor = document.getElementById("carrito-lista");
-  contenedor.innerHTML = "";
-
-  let total = 0;
-
-  carrito.forEach((p) => {
-    total += p.precio * p.cantidad;
-
-    contenedor.innerHTML += `
-  <div class="bg-white shadow-md p-3 rounded-lg flex items-center justify-between mb-3">
-    <div>
-      <p class="font-semibold">${p.nombre}</p>
-      <p class="text-sm text-gray-500">${p.cantidad} x $${p.precio}</p>
-    </div>
-
-    <div class="flex gap-2">
-      <button onclick="sumar(${p.id})" class="bg-green-300 px-2 py-1 rounded">+</button>
-      <button onclick="restar(${p.id})" class="bg-yellow-300 px-2 py-1 rounded">-</button>
-      <button onclick="eliminar(${p.id})" class="bg-red-300 px-2 py-1 rounded">X</button>
-    </div>
-  </div>
-`;
-  });
-
-  document.getElementById("total").innerText = `$${total.toFixed(2)} MX`;
-}
-
-/* ------------------------------
-   BOTONES + - X
---------------------------------*/
-function sumar(id) {
-  carrito.find((p) => p.id === id).cantidad++;
-  actualizarCarrito();
-}
-
-function restar(id) {
-  const prod = carrito.find((p) => p.id === id);
-  if (prod.cantidad > 1) prod.cantidad--;
-  actualizarCarrito();
-}
-
-function eliminar(id) {
-  carrito = carrito.filter((p) => p.id !== id);
-  actualizarCarrito();
-}
-
-/* ------------------------------
-   HORA EN TIEMPO REAL
---------------------------------*/
-setInterval(() => {
-  document.getElementById("hora").innerText = new Date().toLocaleTimeString(
-    "es-MX",
-    { hour12: false }
-  );
-}, 1000);
-
-// =====================
-// MOSTRAR MODAL DE PAGO
-// =====================
-document.getElementById("btn-procesar").addEventListener("click", () => {
-  if (carrito.length === 0) {
-    alertError("El carrito está vacío.");
-    return;
-  }
-
-  document.getElementById("modal-pago").classList.remove("hidden");
-});
-
-function cerrarModalPago() {
-  document.getElementById("modal-pago").classList.add("hidden");
-}
-
-function mostrarTicketTemporal() {
-  let total = carrito.reduce((acc, p) => acc + p.precio * p.cantidad, 0);
-
-  let htmlTicket = `
-        <div class='text-left'>
-            <p class='font-bold text-lg mb-2'>Resumen de Compra</p>
-    `;
-
-  carrito.forEach((p) => {
-    htmlTicket += `
-            <p class='flex justify-between border-b py-1'>
-                <span>${p.cantidad}x ${p.nombre}</span>
-                <span>$${(p.precio * p.cantidad).toFixed(2)}</span>
-            </p>
-        `;
-  });
-
-  htmlTicket += `
-        <hr class='my-2'>
-        <p class='font-bold text-xl text-right'>Total: $${total.toFixed(
-          2
-        )} MX</p>
+                <a href="/korina-pos/back/logout.php"
+                   class="bg-red-600 text-white px-6 py-2.5 rounded-lg hover:bg-red-700 transition shadow-md font-semibold">
+                    Cerrar sesión
+                </a>
+            </div>
         </div>
-    `;
+    </div>
 
-  Swal.fire({
-    title: "Ticket de venta",
-    html: htmlTicket,
-    confirmButtonColor: "#93c5fd",
-    background: "#f1f5f9",
-    width: 400,
-  });
-}
 
-function pagoEfectivo() {
-  // Mostrar sección efectivo
-  document.getElementById("vista-metodo-pago").classList.add("hidden");
-  document.getElementById("vista-efectivo").classList.remove("hidden");
+    <!-- ========== CONTENEDOR GENERAL ========== -->
+    <div class="flex pt-24">
 
-  // Calcular total actual
-  let total = carrito.reduce((acc, p) => acc + p.precio * p.cantidad, 0);
-  document.getElementById("total-pago").innerText = `$${total.toFixed(2)}`;
+        <!-- ========== CARRITO ========== -->
+        <div id="carrito"
+             class="w-1/4 bg-white shadow-2xl h-[calc(100vh-6rem)] p-6 fixed right-0 top-24 border-l-4 border-amber-600 rounded-tl-2xl">
 
-  // REINICIAR VARIABLES
-  montoRecibido = 0;
+            <h2 class="text-2xl font-bold mb-6 text-amber-900 border-b-2 border-amber-200 pb-3">
+                🛒 Carrito
+            </h2>
 
-  // REINICIAR CAMPOS VISUALES
-  let input = document.getElementById("input-manual");
-  input.value = "";
-  input.blur(); // ← MUY IMPORTANTE para evitar valores "fantasma"
+            <div id="carrito-lista" class="h-[65%] overflow-y-auto pr-2 space-y-3">
+                <!-- Productos dinámicos -->
+            </div>
 
-  document.getElementById("monto-recibido").innerText = "$0.00";
-  document.getElementById("cambio").innerText = "$0.00";
-}
+            <div class="mt-6 border-t-2 border-amber-200 pt-4">
+                <div class="flex justify-between text-xl mb-4">
+                    <span class="font-semibold text-amber-900">Total:</span>
+                    <span id="total" class="font-bold text-amber-900 text-2xl">$0.00 MX</span>
+                </div>
 
-function agregarBillete(valor) {
-  montoRecibido += valor;
+                <button id="btn-procesar"
+                    class="w-full bg-gradient-to-r from-amber-600 to-orange-600 text-white py-3 rounded-xl font-bold hover:from-amber-700 hover:to-orange-700 transition shadow-lg transform hover:scale-105">
+                    Realizar orden 🚀
+                </button>
+            </div>
+        </div>
 
-  document.getElementById("monto-recibido").innerText = `$${montoRecibido}`;
 
-  calcularCambio();
-}
+        <!-- ========== CONTENIDO IZQUIERDO ========== -->
+        <div class="w-3/4 p-6 mr-[25%]">
 
-function calcularCambio() {
-  let manual = document.getElementById("input-manual").value.trim();
-  let total = carrito.reduce((acc, p) => acc + p.precio * p.cantidad, 0);
+            <!-- ========== VISTA 1: CATEGORÍAS ========== -->
+            <div id="vista-categorias">
 
-  // Si input manual está vacío → NO modificar montoRecibido
-  if (manual === "" || isNaN(manual)) {
-    // solo recalcular el cambio si se usaron billetes
-    let cambio = montoRecibido - total;
-    document.getElementById("cambio").innerText =
-      cambio >= 0 ? `$${cambio.toFixed(2)}` : "$0.00";
-    return;
-  }
+                <h1 class="text-4xl font-bold mb-8 text-amber-900">
+                    ☕ Selecciona una categoría
+                </h1>
 
-  // Si escribió un número, usarlo
-  montoRecibido = parseFloat(manual);
-  document.getElementById("monto-recibido").innerText = `$${montoRecibido}`;
+                <div class="grid grid-cols-3 gap-6">
 
-  let cambio = montoRecibido - total;
+                    <!-- Tarjetas de categoría -->
+                    <?php
+                    $categorias = [
+                        ["Cafés Calientes", "cafe-caliente.png"],
+                        ["Cafés Fríos", "cafe-frio.png"],
+                        ["Tés", "te.png"],
+                        ["Comidas", "comida.png"],
+                        ["Postres", "postre.png"],
+                        ["Frappes", "frappe.png"],
+                    ];
 
-  document.getElementById("cambio").innerText =
-    cambio >= 0 ? `$${cambio.toFixed(2)}` : "$0.00";
-}
+                    foreach ($categorias as $cat): ?>
+                        <div onclick="mostrarProductos('<?php echo $cat[0]; ?>')"
+                            class="bg-white shadow-xl p-6 rounded-2xl text-center cursor-pointer hover:scale-110 transition-all border-2 border-amber-200 hover:border-amber-500 hover:shadow-2xl">
 
-function confirmarPagoEfectivo() {
-  let total = carrito.reduce((acc, p) => acc + p.precio * p.cantidad, 0);
+                            <img src="/korina-pos/front/imagenes/<?php echo $cat[1]; ?>"
+                                 class="h-24 mx-auto mb-3">
 
-  if (montoRecibido < total) {
-    return Swal.fire({
-      icon: "error",
-      title: "Monto insuficiente",
-      text: "El monto recibido no cubre el total.",
-      confirmButtonColor: "#f87171",
-    });
-  }
+                            <p class="font-bold text-amber-900 text-lg">
+                                <?php echo $cat[0]; ?>
+                            </p>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
 
-  cerrarModalPago();
 
-  Swal.fire({
-    icon: "success",
-    title: "Pago realizado",
-    text: "El pago en efectivo se ha completado correctamente.",
-    confirmButtonColor: "#4ade80",
-    background: "#f0fdf4",
-  }).then(() => {
-    guardarVenta("efectivo");
-  });
-}
+            <!-- ========== VISTA 2: PRODUCTOS ========== -->
+            <div id="vista-productos" class="hidden">
 
-function volverMetodoPago() {
-  document.getElementById("vista-efectivo").classList.add("hidden");
-  document.getElementById("vista-metodo-pago").classList.remove("hidden");
-}
+                <button onclick="volverCategorias()"
+                    class="mb-6 bg-gradient-to-r from-amber-600 to-orange-600 text-white px-6 py-3 rounded-xl hover:from-amber-700 hover:to-orange-700 font-bold transition shadow-lg">
+                    ← Regresar a categorías
+                </button>
 
-function limpiarCarrito() {
-  carrito = [];
-  actualizarCarrito();
-  volverCategorias();
+                <h2 id="titulo-categoria"
+                    class="text-4xl font-bold mb-8 text-amber-900"></h2>
 
-  // RESETEAR EFECTIVO
-  montoRecibido = 0;
+                <div id="productos-grid"
+                     class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                    <!-- JS carga productos -->
+                </div>
+            </div>
 
-  // limpiar input manual SI EXISTE
-  let input = document.getElementById("input-manual");
-  if (input) {
-    input.value = "";
-    input.blur();
-  }
+        </div>
+    </div>
 
-  // limpiar textos del modal
-  document.getElementById("monto-recibido").innerText = "$0.00";
-  document.getElementById("cambio").innerText = "$0.00";
-}
 
-// function pagoTarjeta() {
-//   cerrarModalPago();
+    <!-- ========== MODAL PAGO ========== -->
+<div id="modal-pago"
+     class="hidden fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50">
 
-//   Swal.fire({
-//     title: "Pago con tarjeta",
-//     text: "El pago se procesó correctamente",
-//     icon: "success",
-//     confirmButtonColor: "#4ade80",
-//     background: "#fefce8",
-//   }).then(() => {
-//     mostrarTicketTemporal();
-//     limpiarCarrito();
-//   });
-// }
+    <div class="bg-white p-8 rounded-2xl w-[450px] shadow-2xl border-4 border-amber-500">
 
-function pagoTarjeta() {
-  cerrarModalPago();
+        <!-- MÉTODO DE PAGO -->
+        <div id="vista-metodo-pago">
+            <h2 class="text-2xl font-bold mb-6 text-amber-900">💳 Método de pago</h2>
 
-  Swal.fire({
-    icon: "success",
-    title: "Pago con tarjeta",
-    text: "La transacción se procesó correctamente.",
-    confirmButtonColor: "#4ade80",
-    background: "#f0fdf4",
-  }).then(() => {
-    guardarVenta("tarjeta");
-  });
-}
+            <button onclick="pagoEfectivo()"
+                class="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white py-4 mb-4 rounded-xl hover:from-green-600 hover:to-emerald-700 font-bold text-lg shadow-lg transition transform hover:scale-105">
+                💵 Efectivo
+            </button>
 
-async function guardarVenta(metodo) {
-  // 1. Calcular total de la venta
-  let total = carrito.reduce((acc, p) => acc + p.precio * p.cantidad, 0);
+            <button onclick="pagoTarjeta()"
+                class="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white py-4 rounded-xl hover:from-blue-600 hover:to-indigo-700 font-bold text-lg shadow-lg transition transform hover:scale-105">
+                💳 Tarjeta
+            </button>
+        </div>
 
-  // 2. Preparar detalle
-  let detalle = carrito.map((p) => ({
-    id: p.id,
-    cantidad: p.cantidad,
-    precio: p.precio,
-    subtotal: p.precio * p.cantidad,
-  }));
 
-  // 3. Construir el JSON que PHP recibirá
-  let payload = {
-    total: total,
-    metodo_pago: metodo, // "efectivo" o "tarjeta"
-    detalle: detalle,
-  };
+        <!-- PAGO EN EFECTIVO -->
+        <div id="vista-efectivo" class="hidden">
+            <h2 class="text-2xl font-bold mb-4 text-amber-900">💵 Pago en efectivo</h2>
 
-  try {
-    let respuesta = await fetch("/korina-pos/back/ventas/registrar_venta.php", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
+            <p class="text-gray-700 mb-3 font-semibold">Monto recibido:</p>
 
-    let data = await respuesta.json();
+            <!-- GRID DE BILLETES -->
+            <div class="grid grid-cols-3 gap-3 mb-4">
 
-    if (data.status === "success") {
-      Swal.fire({
-        icon: "success",
-        title: "Venta registrada",
-        text: "Folio de venta: " + data.venta_id,
-        confirmButtonColor: "#4ade80",
-      });
+                <button class="billete bg-gradient-to-br from-blue-300 to-blue-400 py-3 rounded-xl font-bold text-blue-900 shadow-md hover:shadow-xl transition transform hover:scale-105" onclick="agregarBillete(20)">$20</button>
+                <button class="billete bg-gradient-to-br from-pink-300 to-pink-400 py-3 rounded-xl font-bold text-pink-900 shadow-md hover:shadow-xl transition transform hover:scale-105" onclick="agregarBillete(50)">$50</button>
+                <button class="billete bg-gradient-to-br from-red-300 to-red-400 py-3 rounded-xl font-bold text-red-900 shadow-md hover:shadow-xl transition transform hover:scale-105" onclick="agregarBillete(100)">$100</button>
+                <button class="billete bg-gradient-to-br from-green-300 to-green-400 py-3 rounded-xl font-bold text-green-900 shadow-md hover:shadow-xl transition transform hover:scale-105" onclick="agregarBillete(200)">$200</button>
+                <button class="billete bg-gradient-to-br from-blue-400 to-blue-500 py-3 rounded-xl font-bold text-blue-900 shadow-md hover:shadow-xl transition transform hover:scale-105" onclick="agregarBillete(500)">$500</button>
+                <button class="billete bg-gradient-to-br from-purple-300 to-purple-400 py-3 rounded-xl font-bold text-purple-900 shadow-md hover:shadow-xl transition transform hover:scale-105" onclick="agregarBillete(1000)">$1000</button>
 
-      // Mostrar ticket
-      mostrarTicketTemporal();
+            </div>
 
-      // Limpiar carrito después de guardar
-      limpiarCarrito();
-    } else {
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: data.message || "No se pudo registrar la venta",
-        confirmButtonColor: "#f87171",
-      });
-    }
-  } catch (error) {
-    Swal.fire({
-      icon: "error",
-      title: "Error de conexión",
-      text: error.message,
-      confirmButtonColor: "#f87171",
-    });
-  }
-}
+            <input id="input-manual" type="number" placeholder="💰 Monto manual"
+                class="w-full border-2 border-amber-300 px-4 py-3 rounded-xl mb-4 focus:border-amber-500 focus:ring-2 focus:ring-amber-200" oninput="calcularCambio()">
 
-function cerrarModalPago() {
-  document.getElementById("modal-pago").classList.add("hidden");
+            <div class="mb-4 bg-amber-50 p-4 rounded-xl border-2 border-amber-200">
+                <p class="text-lg">Total a pagar: <b id="total-pago" class="text-amber-900">$0.00</b></p>
+                <p class="text-lg">Monto recibido: <b id="monto-recibido" class="text-green-700">$0.00</b></p>
+                <p class="text-xl mt-2">Cambio: <b id="cambio" class="text-2xl text-blue-700">$0.00</b></p>
+            </div>
 
-  // resetear vistas internas
-  document.getElementById("vista-metodo-pago").classList.remove("hidden");
-  document.getElementById("vista-efectivo").classList.add("hidden");
+            <button onclick="confirmarPagoEfectivo()"
+                class="w-full bg-gradient-to-r from-green-600 to-emerald-700 text-white py-3 rounded-xl mt-2 hover:from-green-700 hover:to-emerald-800 font-bold shadow-lg transition transform hover:scale-105">
+                ✅ Confirmar pago
+            </button>
 
-  // reset efectivo visual
-  montoRecibido = 0;
-  document.getElementById("input-manual").value = "";
-  document.getElementById("monto-recibido").innerText = "$0.00";
-  document.getElementById("cambio").innerText = "$0.00";
-}
+            <button onclick="volverMetodoPago()"
+                class="w-full bg-gradient-to-r from-gray-400 to-gray-500 text-white py-3 rounded-xl mt-3 hover:from-gray-500 hover:to-gray-600 font-bold shadow-lg transition">
+                ← Regresar
+            </button>
+        </div>
+
+    </div>
+</div>
+
+
+    <!-- JS -->
+    <script src="/korina-pos/front/cajero/pos.js"></script>
+
+</body>
+</html>
