@@ -10,7 +10,7 @@ include "../../back/conexion.php";
 
 $nombre = $_POST["nombre"];
 $usuario = $_POST["usuario"];
-$password = $_POST["password"]; // sin hash porque tú dijiste básico
+$password = $_POST["password"]; 
 $rol = $_POST["rol"];
 
 $sql = $conexion->prepare("INSERT INTO usuarios (nombre, usuario, password, rol) VALUES (?, ?, ?, ?)");

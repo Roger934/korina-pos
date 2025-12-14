@@ -1,0 +1,25 @@
+1. Instalar XAMPP (Servidor de base de datos) 
+
+2. Activar o iniciar (start) el apache y MySQL. Una vez prendido, dar en la parte de admin en MySQL.
+
+3. Dar en el apartado de SQL y pegar el Script que se encuentra en la carpeta DB (korina_pos.sql) o en la opción que se encuentra en importar.
+
+4. Si llegaste hasta aquí es porque descomprimiste  la carpeta, entonces debes tomar la carpeta korina-pos y moverla al siguiente directorio: C:\xampp\htdocs\
+
+5. Pega en el navegador de tú confianza el siguiente link: 
+
+	http://localhost/korina-pos/front/index.php
+
+las credenciales son las siguientes:
+
+Usuario: admin 
+Contraseña: 1
+
+Usuario: cajero
+Contraseña: 123
+
+
+Consideraciones:
+En algunos navegadores no puede cargar completamente los scripts, incluso puede bloquearlos, en caso de que no se puedan cargar los productos en la parte de cajero->categorías, se debe borrar el Local Storage. Para ello, presione F12, selecciones Application, busque Local Storage y de click derecho y de en borrar.
+
+Si no funcionó, ni modo :) 
