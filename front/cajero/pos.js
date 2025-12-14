@@ -1,207 +1,436 @@
-<?php
-session_start();
+/* ------------------------------
+   VARIABLES GLOBALES
+--------------------------------*/
+let productos = [];
+let carrito = [];
+let categoriaActual = "";
+let montoRecibido = 0;
 
-// Protección de rol
-if (!isset($_SESSION["rol"]) || $_SESSION["rol"] != "cajero") {
-    header("Location: ../index.php");
-    exit;
+function alertSuccess(msg) {
+  Swal.fire({
+    icon: "success",
+    title: msg,
+    confirmButtonColor: "#4ade80",
+    background: "#fefce8",
+  });
 }
-?>
 
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title>Korina POS</title>
+function alertError(msg) {
+  Swal.fire({
+    icon: "error",
+    title: "Error",
+    text: msg,
+    confirmButtonColor: "#f87171",
+    background: "#fef2f2",
+  });
+}
 
-    <!-- Tailwind CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-</head>
+function alertInfo(msg) {
+  Swal.fire({
+    icon: "info",
+    title: msg,
+    confirmButtonColor: "#93c5fd",
+    background: "#eff6ff",
+  });
+}
 
-<body class="bg-gradient-to-br from-amber-50 to-orange-50">
+/* ------------------------------
+   CAMBIAR A VISTA PRODUCTOS
+--------------------------------*/
+function mostrarProductos(categoria) {
+  categoriaActual = categoria;
+  document.getElementById("titulo-categoria").innerText = categoria;
+  document.getElementById("vista-categorias").classList.add("hidden");
+  document.getElementById("vista-productos").classList.remove("hidden");
+  cargarProductos(categoria);
+}
 
-    <!-- ========== HEADER ========== -->
-    <div class="bg-gradient-to-r from-amber-800 to-orange-700 p-4 shadow-lg mb-6 fixed top-0 left-0 right-0 z-50">
-        <div class="flex justify-between items-center">
+/* ------------------------------
+   VOLVER A CATEGORÍAS
+--------------------------------*/
+function volverCategorias() {
+  document.getElementById("vista-productos").classList.add("hidden");
+  document.getElementById("vista-categorias").classList.remove("hidden");
+}
 
-            <!-- Logo + Cajero -->
-            <div class="flex items-center gap-4">
-                <img src="/korina-pos/front/imagenes/logo.png" class="h-16" />
-                <span class="text-xl font-semibold text-white">
-                    Atiende: <b><?php echo $_SESSION["nombre"]; ?></b>
-                </span>
-            </div>
+/* ------------------------------
+   CARGAR PRODUCTOS (CORREGIDO)
+--------------------------------*/
+async function cargarProductos(categoria) {
+  const productosGrid = document.getElementById("productos-grid");
+  productosGrid.innerHTML = "Cargando...";
 
-            <!-- Hora + Logout -->
-            <div class="flex items-center gap-6">
+  try {
+    let res = await fetch(
+      `/korina-pos/back/productos/obtener.php?categoria=${encodeURIComponent(
+        categoria
+      )}`
+    );
+    let productos = await res.json();
 
-                <div id="hora" class="text-xl font-bold text-amber-100"></div>
+    productosGrid.innerHTML = "";
 
-                <a href="/korina-pos/back/logout.php"
-                   class="bg-red-600 text-white px-6 py-2.5 rounded-lg hover:bg-red-700 transition shadow-md font-semibold">
-                    Cerrar sesión
-                </a>
-            </div>
+    productos.forEach((p) => {
+      // Escapar caracteres especiales en el nombre
+      const nombreSeguro = p.nombre
+        .replace(/'/g, "\\'")
+        .replace(/"/g, "&quot;");
+
+      const divProducto = document.createElement("div");
+      divProducto.className =
+        "bg-white shadow-md p-6 rounded-xl text-center hover:scale-105 transition cursor-pointer";
+
+      divProducto.innerHTML = `
+        <img src="/korina-pos/front/imagenes/${p.imagen}"
+             class="h-24 mx-auto mb-3 object-contain"
+             onerror="this.style.display='none'">
+        
+        <p class="font-bold text-xl mb-2">${p.nombre}</p>
+        <p class="text-gray-600 text-lg mb-3">$${p.precio}</p>
+
+        <button 
+            class="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 btn-agregar"
+            data-id="${p.id}"
+            data-nombre="${nombreSeguro}"
+            data-precio="${p.precio}">
+            Agregar
+        </button>
+      `;
+
+      // Agregar event listener al botón
+      const btnAgregar = divProducto.querySelector(".btn-agregar");
+      btnAgregar.addEventListener("click", function () {
+        agregarCarrito(
+          parseInt(this.dataset.id),
+          this.dataset.nombre,
+          parseFloat(this.dataset.precio)
+        );
+      });
+
+      productosGrid.appendChild(divProducto);
+    });
+  } catch (error) {
+    productosGrid.innerHTML = `<p class="text-red-600">Error al cargar productos: ${error.message}</p>`;
+  }
+}
+
+/* ------------------------------
+   AGREGAR PRODUCTO AL CARRITO
+--------------------------------*/
+function agregarCarrito(id, nombre, precio) {
+  const existe = carrito.find((p) => p.id === id);
+
+  if (existe) {
+    existe.cantidad++;
+  } else {
+    carrito.push({
+      id,
+      nombre,
+      precio,
+      cantidad: 1,
+    });
+  }
+
+  actualizarCarrito();
+}
+
+/* ------------------------------
+   ACTUALIZAR CARRITO VISUAL
+--------------------------------*/
+function actualizarCarrito() {
+  const contenedor = document.getElementById("carrito-lista");
+  contenedor.innerHTML = "";
+
+  let total = 0;
+
+  carrito.forEach((p) => {
+    total += p.precio * p.cantidad;
+
+    contenedor.innerHTML += `
+      <div class="bg-white shadow-md p-3 rounded-lg flex items-center justify-between mb-3">
+        <div>
+          <p class="font-semibold">${p.nombre}</p>
+          <p class="text-sm text-gray-500">${p.cantidad} x $${p.precio}</p>
         </div>
+
+        <div class="flex gap-2">
+          <button onclick="sumar(${p.id})" class="bg-green-300 px-2 py-1 rounded">+</button>
+          <button onclick="restar(${p.id})" class="bg-yellow-300 px-2 py-1 rounded">-</button>
+          <button onclick="eliminar(${p.id})" class="bg-red-300 px-2 py-1 rounded">X</button>
+        </div>
+      </div>
+    `;
+  });
+
+  document.getElementById("total").innerText = `$${total.toFixed(2)} MX`;
+}
+
+/* ------------------------------
+   BOTONES + - X
+--------------------------------*/
+function sumar(id) {
+  carrito.find((p) => p.id === id).cantidad++;
+  actualizarCarrito();
+}
+
+function restar(id) {
+  const prod = carrito.find((p) => p.id === id);
+  if (prod.cantidad > 1) prod.cantidad--;
+  actualizarCarrito();
+}
+
+function eliminar(id) {
+  carrito = carrito.filter((p) => p.id !== id);
+  actualizarCarrito();
+}
+
+/* ------------------------------
+   HORA EN TIEMPO REAL
+--------------------------------*/
+setInterval(() => {
+  document.getElementById("hora").innerText = new Date().toLocaleTimeString(
+    "es-MX",
+    { hour12: false }
+  );
+}, 1000);
+
+/* ------------------------------
+   MODAL DE PAGO
+--------------------------------*/
+document.getElementById("btn-procesar").addEventListener("click", () => {
+  if (carrito.length === 0) {
+    alertError("El carrito está vacío.");
+    return;
+  }
+
+  document.getElementById("modal-pago").classList.remove("hidden");
+});
+
+function cerrarModalPago() {
+  document.getElementById("modal-pago").classList.add("hidden");
+
+  // Resetear vistas internas
+  document.getElementById("vista-metodo-pago").classList.remove("hidden");
+  document.getElementById("vista-efectivo").classList.add("hidden");
+
+  // Reset efectivo visual
+  montoRecibido = 0;
+  const inputManual = document.getElementById("input-manual");
+  if (inputManual) {
+    inputManual.value = "";
+    inputManual.blur();
+  }
+  document.getElementById("monto-recibido").innerText = "$0.00";
+  document.getElementById("cambio").innerText = "$0.00";
+}
+
+function mostrarTicketTemporal() {
+  let total = carrito.reduce((acc, p) => acc + p.precio * p.cantidad, 0);
+
+  let htmlTicket = `
+    <div class='text-left'>
+      <p class='font-bold text-lg mb-2'>Resumen de Compra</p>
+  `;
+
+  carrito.forEach((p) => {
+    htmlTicket += `
+      <p class='flex justify-between border-b py-1'>
+        <span>${p.cantidad}x ${p.nombre}</span>
+        <span>$${(p.precio * p.cantidad).toFixed(2)}</span>
+      </p>
+    `;
+  });
+
+  htmlTicket += `
+    <hr class='my-2'>
+    <p class='font-bold text-xl text-right'>Total: $${total.toFixed(2)} MX</p>
     </div>
+  `;
 
+  Swal.fire({
+    title: "Ticket de venta",
+    html: htmlTicket,
+    confirmButtonColor: "#93c5fd",
+    background: "#f1f5f9",
+    width: 400,
+  });
+}
 
-    <!-- ========== CONTENEDOR GENERAL ========== -->
-    <div class="flex pt-24">
+/* ------------------------------
+   PAGO EN EFECTIVO
+--------------------------------*/
+function pagoEfectivo() {
+  document.getElementById("vista-metodo-pago").classList.add("hidden");
+  document.getElementById("vista-efectivo").classList.remove("hidden");
 
-        <!-- ========== CARRITO ========== -->
-        <div id="carrito"
-             class="w-1/4 bg-white shadow-2xl h-[calc(100vh-6rem)] p-6 fixed right-0 top-24 border-l-4 border-amber-600 rounded-tl-2xl">
+  let total = carrito.reduce((acc, p) => acc + p.precio * p.cantidad, 0);
+  document.getElementById("total-pago").innerText = `$${total.toFixed(2)}`;
 
-            <h2 class="text-2xl font-bold mb-6 text-amber-900 border-b-2 border-amber-200 pb-3">
-                🛒 Carrito
-            </h2>
+  // REINICIAR VARIABLES
+  montoRecibido = 0;
 
-            <div id="carrito-lista" class="h-[65%] overflow-y-auto pr-2 space-y-3">
-                <!-- Productos dinámicos -->
-            </div>
+  // REINICIAR CAMPOS VISUALES
+  const input = document.getElementById("input-manual");
+  input.value = "";
+  input.blur();
 
-            <div class="mt-6 border-t-2 border-amber-200 pt-4">
-                <div class="flex justify-between text-xl mb-4">
-                    <span class="font-semibold text-amber-900">Total:</span>
-                    <span id="total" class="font-bold text-amber-900 text-2xl">$0.00 MX</span>
-                </div>
+  document.getElementById("monto-recibido").innerText = "$0.00";
+  document.getElementById("cambio").innerText = "$0.00";
+}
 
-                <button id="btn-procesar"
-                    class="w-full bg-gradient-to-r from-amber-600 to-orange-600 text-white py-3 rounded-xl font-bold hover:from-amber-700 hover:to-orange-700 transition shadow-lg transform hover:scale-105">
-                    Realizar orden 🚀
-                </button>
-            </div>
-        </div>
+function agregarBillete(valor) {
+  montoRecibido += valor;
+  document.getElementById(
+    "monto-recibido"
+  ).innerText = `$${montoRecibido.toFixed(2)}`;
+  calcularCambio();
+}
 
+function calcularCambio() {
+  let manual = document.getElementById("input-manual").value.trim();
+  let total = carrito.reduce((acc, p) => acc + p.precio * p.cantidad, 0);
 
-        <!-- ========== CONTENIDO IZQUIERDO ========== -->
-        <div class="w-3/4 p-6 mr-[25%]">
+  // Si input manual está vacío → NO modificar montoRecibido
+  if (manual === "" || isNaN(manual)) {
+    let cambio = montoRecibido - total;
+    document.getElementById("cambio").innerText =
+      cambio >= 0 ? `$${cambio.toFixed(2)}` : "$0.00";
+    return;
+  }
 
-            <!-- ========== VISTA 1: CATEGORÍAS ========== -->
-            <div id="vista-categorias">
+  // Si escribió un número, usarlo
+  montoRecibido = parseFloat(manual);
+  document.getElementById(
+    "monto-recibido"
+  ).innerText = `$${montoRecibido.toFixed(2)}`;
 
-                <h1 class="text-4xl font-bold mb-8 text-amber-900">
-                    ☕ Selecciona una categoría
-                </h1>
+  let cambio = montoRecibido - total;
+  document.getElementById("cambio").innerText =
+    cambio >= 0 ? `$${cambio.toFixed(2)}` : "$0.00";
+}
 
-                <div class="grid grid-cols-3 gap-6">
+function confirmarPagoEfectivo() {
+  let total = carrito.reduce((acc, p) => acc + p.precio * p.cantidad, 0);
 
-                    <!-- Tarjetas de categoría -->
-                    <?php
-                    $categorias = [
-                        ["Cafés Calientes", "cafe-caliente.png"],
-                        ["Cafés Fríos", "cafe-frio.png"],
-                        ["Tés", "te.png"],
-                        ["Comidas", "comida.png"],
-                        ["Postres", "postre.png"],
-                        ["Frappes", "frappe.png"],
-                    ];
+  if (montoRecibido < total) {
+    return Swal.fire({
+      icon: "error",
+      title: "Monto insuficiente",
+      text: "El monto recibido no cubre el total.",
+      confirmButtonColor: "#f87171",
+    });
+  }
 
-                    foreach ($categorias as $cat): ?>
-                        <div onclick="mostrarProductos('<?php echo $cat[0]; ?>')"
-                            class="bg-white shadow-xl p-6 rounded-2xl text-center cursor-pointer hover:scale-110 transition-all border-2 border-amber-200 hover:border-amber-500 hover:shadow-2xl">
+  cerrarModalPago();
 
-                            <img src="/korina-pos/front/imagenes/<?php echo $cat[1]; ?>"
-                                 class="h-24 mx-auto mb-3">
+  Swal.fire({
+    icon: "success",
+    title: "Pago realizado",
+    text: "El pago en efectivo se ha completado correctamente.",
+    confirmButtonColor: "#4ade80",
+    background: "#f0fdf4",
+  }).then(() => {
+    guardarVenta("efectivo");
+  });
+}
 
-                            <p class="font-bold text-amber-900 text-lg">
-                                <?php echo $cat[0]; ?>
-                            </p>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-            </div>
+function volverMetodoPago() {
+  document.getElementById("vista-efectivo").classList.add("hidden");
+  document.getElementById("vista-metodo-pago").classList.remove("hidden");
+}
 
+/* ------------------------------
+   PAGO CON TARJETA
+--------------------------------*/
+function pagoTarjeta() {
+  cerrarModalPago();
 
-            <!-- ========== VISTA 2: PRODUCTOS ========== -->
-            <div id="vista-productos" class="hidden">
+  Swal.fire({
+    icon: "success",
+    title: "Pago con tarjeta",
+    text: "La transacción se procesó correctamente.",
+    confirmButtonColor: "#4ade80",
+    background: "#f0fdf4",
+  }).then(() => {
+    guardarVenta("tarjeta");
+  });
+}
 
-                <button onclick="volverCategorias()"
-                    class="mb-6 bg-gradient-to-r from-amber-600 to-orange-600 text-white px-6 py-3 rounded-xl hover:from-amber-700 hover:to-orange-700 font-bold transition shadow-lg">
-                    ← Regresar a categorías
-                </button>
+/* ------------------------------
+   GUARDAR VENTA EN BD
+--------------------------------*/
+async function guardarVenta(metodo) {
+  let total = carrito.reduce((acc, p) => acc + p.precio * p.cantidad, 0);
 
-                <h2 id="titulo-categoria"
-                    class="text-4xl font-bold mb-8 text-amber-900"></h2>
+  let detalle = carrito.map((p) => ({
+    id: p.id,
+    cantidad: p.cantidad,
+    precio: p.precio,
+    subtotal: p.precio * p.cantidad,
+  }));
 
-                <div id="productos-grid"
-                     class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                    <!-- JS carga productos -->
-                </div>
-            </div>
+  let payload = {
+    total: total,
+    metodo_pago: metodo,
+    detalle: detalle,
+  };
 
-        </div>
-    </div>
+  try {
+    let respuesta = await fetch("/korina-pos/back/ventas/registrar_venta.php", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
 
+    let data = await respuesta.json();
 
-    <!-- ========== MODAL PAGO ========== -->
-<div id="modal-pago"
-     class="hidden fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50">
+    if (data.status === "success") {
+      Swal.fire({
+        icon: "success",
+        title: "Venta registrada",
+        text: "Folio de venta: " + data.venta_id,
+        confirmButtonColor: "#4ade80",
+      });
 
-    <div class="bg-white p-8 rounded-2xl w-[450px] shadow-2xl border-4 border-amber-500">
+      mostrarTicketTemporal();
+      limpiarCarrito();
+    } else {
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: data.message || "No se pudo registrar la venta",
+        confirmButtonColor: "#f87171",
+      });
+    }
+  } catch (error) {
+    Swal.fire({
+      icon: "error",
+      title: "Error de conexión",
+      text: error.message,
+      confirmButtonColor: "#f87171",
+    });
+  }
+}
 
-        <!-- MÉTODO DE PAGO -->
-        <div id="vista-metodo-pago">
-            <h2 class="text-2xl font-bold mb-6 text-amber-900">💳 Método de pago</h2>
+/* ------------------------------
+   LIMPIAR CARRITO
+--------------------------------*/
+function limpiarCarrito() {
+  carrito = [];
+  actualizarCarrito();
+  volverCategorias();
 
-            <button onclick="pagoEfectivo()"
-                class="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white py-4 mb-4 rounded-xl hover:from-green-600 hover:to-emerald-700 font-bold text-lg shadow-lg transition transform hover:scale-105">
-                💵 Efectivo
-            </button>
+  // RESETEAR EFECTIVO
+  montoRecibido = 0;
 
-            <button onclick="pagoTarjeta()"
-                class="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white py-4 rounded-xl hover:from-blue-600 hover:to-indigo-700 font-bold text-lg shadow-lg transition transform hover:scale-105">
-                💳 Tarjeta
-            </button>
-        </div>
+  const input = document.getElementById("input-manual");
+  if (input) {
+    input.value = "";
+    input.blur();
+  }
 
-
-        <!-- PAGO EN EFECTIVO -->
-        <div id="vista-efectivo" class="hidden">
-            <h2 class="text-2xl font-bold mb-4 text-amber-900">💵 Pago en efectivo</h2>
-
-            <p class="text-gray-700 mb-3 font-semibold">Monto recibido:</p>
-
-            <!-- GRID DE BILLETES -->
-            <div class="grid grid-cols-3 gap-3 mb-4">
-
-                <button class="billete bg-gradient-to-br from-blue-300 to-blue-400 py-3 rounded-xl font-bold text-blue-900 shadow-md hover:shadow-xl transition transform hover:scale-105" onclick="agregarBillete(20)">$20</button>
-                <button class="billete bg-gradient-to-br from-pink-300 to-pink-400 py-3 rounded-xl font-bold text-pink-900 shadow-md hover:shadow-xl transition transform hover:scale-105" onclick="agregarBillete(50)">$50</button>
-                <button class="billete bg-gradient-to-br from-red-300 to-red-400 py-3 rounded-xl font-bold text-red-900 shadow-md hover:shadow-xl transition transform hover:scale-105" onclick="agregarBillete(100)">$100</button>
-                <button class="billete bg-gradient-to-br from-green-300 to-green-400 py-3 rounded-xl font-bold text-green-900 shadow-md hover:shadow-xl transition transform hover:scale-105" onclick="agregarBillete(200)">$200</button>
-                <button class="billete bg-gradient-to-br from-blue-400 to-blue-500 py-3 rounded-xl font-bold text-blue-900 shadow-md hover:shadow-xl transition transform hover:scale-105" onclick="agregarBillete(500)">$500</button>
-                <button class="billete bg-gradient-to-br from-purple-300 to-purple-400 py-3 rounded-xl font-bold text-purple-900 shadow-md hover:shadow-xl transition transform hover:scale-105" onclick="agregarBillete(1000)">$1000</button>
-
-            </div>
-
-            <input id="input-manual" type="number" placeholder="💰 Monto manual"
-                class="w-full border-2 border-amber-300 px-4 py-3 rounded-xl mb-4 focus:border-amber-500 focus:ring-2 focus:ring-amber-200" oninput="calcularCambio()">
-
-            <div class="mb-4 bg-amber-50 p-4 rounded-xl border-2 border-amber-200">
-                <p class="text-lg">Total a pagar: <b id="total-pago" class="text-amber-900">$0.00</b></p>
-                <p class="text-lg">Monto recibido: <b id="monto-recibido" class="text-green-700">$0.00</b></p>
-                <p class="text-xl mt-2">Cambio: <b id="cambio" class="text-2xl text-blue-700">$0.00</b></p>
-            </div>
-
-            <button onclick="confirmarPagoEfectivo()"
-                class="w-full bg-gradient-to-r from-green-600 to-emerald-700 text-white py-3 rounded-xl mt-2 hover:from-green-700 hover:to-emerald-800 font-bold shadow-lg transition transform hover:scale-105">
-                ✅ Confirmar pago
-            </button>
-
-            <button onclick="volverMetodoPago()"
-                class="w-full bg-gradient-to-r from-gray-400 to-gray-500 text-white py-3 rounded-xl mt-3 hover:from-gray-500 hover:to-gray-600 font-bold shadow-lg transition">
-                ← Regresar
-            </button>
-        </div>
-
-    </div>
-</div>
-
-
-    <!-- JS -->
-    <script src="/korina-pos/front/cajero/pos.js"></script>
-
-</body>
-</html>
+  document.getElementById("monto-recibido").innerText = "$0.00";
+  document.getElementById("cambio").innerText = "$0.00";
+}
